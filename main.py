@@ -39,23 +39,15 @@ def genetic_algorithm(distance_matrix, population_size=50, generations=100, muta
         # Evaluate fitness
         fitness_scores = [1 / calculate_distance(route, distance_matrix) for route in population]
 
-        # Select parents (roulette wheel selection)
-        # total_fitness = sum(fitness_scores)
-        # probabilities = [score / total_fitness for score in fitness_scores]
-        # parents = random.choices(population, weights=probabilities, k=population_size // 2)
+        # Select parents (elitist selection)
+        def elitist_selection(population, fitness_scores, num_elites=10):
+            # Sort individuals by fitness in descending order
+            sorted_indices = np.argsort(fitness_scores)[::-1]
+            # Select the top individuals based on the number of elites
+            elites = [population[i] for i in sorted_indices[:num_elites]]
+            return elites
 
-        # Select parents (tournament selection)
-        def tournament_selection(population, fitness_scores, tournament_size=3):
-            selected = []
-            for _ in range(population_size // 2):
-                # Randomly select individuals for the tournament
-                tournament_indices = random.sample(range(len(population)), tournament_size)
-                # Find the best individual in the tournament
-                best_index = max(tournament_indices, key=lambda idx: fitness_scores[idx])
-                selected.append(population[best_index])
-            return selected
-
-        parents = tournament_selection(population, fitness_scores)
+        parents = elitist_selection(population, fitness_scores)
 
         # Create next generation
         next_population = []
