@@ -32,8 +32,31 @@ def calculate_distance(route, distance_matrix):
 def genetic_algorithm(distance_matrix, population_size=50, generations=100, mutation_rate=0.1):
     num_cities = distance_matrix.shape[0]
 
-    # Initialize population
-    population = [random.sample(range(num_cities), num_cities) for _ in range(population_size)]
+    # Nearest neighbor heuristic for creating a single route
+    def nearest_neighbor_route(start_city, distance_matrix):
+        num_cities = distance_matrix.shape[0]
+        unvisited = set(range(num_cities))
+        route = [start_city]
+        unvisited.remove(start_city)
+
+        while unvisited:
+            last_city = route[-1]
+            next_city = min(unvisited, key=lambda city: distance_matrix[last_city, city])
+            route.append(next_city)
+            unvisited.remove(next_city)
+
+        return route
+
+    # Initialize population using nearest neighbor heuristic
+    population = []
+    for _ in range(population_size // 2):
+        start_city = random.randint(0, num_cities - 1)
+        route = nearest_neighbor_route(start_city, distance_matrix)
+        population.append(route)
+
+    # Add random permutations to diversify the initial population
+    while len(population) < population_size:
+        population.append(random.sample(range(num_cities), num_cities))
 
     for _ in range(generations):
         # Evaluate fitness
@@ -49,6 +72,7 @@ def genetic_algorithm(distance_matrix, population_size=50, generations=100, muta
 
         parents = elitist_selection(population, fitness_scores)
 
+
         # Create next generation
         next_population = []
         while len(next_population) < population_size:
@@ -57,11 +81,14 @@ def genetic_algorithm(distance_matrix, population_size=50, generations=100, muta
             child = parent1[:cut] + [gene for gene in parent2 if gene not in parent1[:cut]]
             next_population.append(child)
 
-        # Mutate
+        # Mutate and improve with 2-Opt
         for i in range(len(next_population)):
             if random.random() < mutation_rate:
                 a, b = random.sample(range(num_cities), 2)
                 next_population[i][a], next_population[i][b] = next_population[i][b], next_population[i][a]
+
+        # Apply 2-Opt to refine the route
+            next_population[i], _ = two_opt(next_population[i], distance_matrix)
 
         population = next_population
 
@@ -70,7 +97,30 @@ def genetic_algorithm(distance_matrix, population_size=50, generations=100, muta
     best_distance = calculate_distance(best_route, distance_matrix)
     return best_route, best_distance
 
-"""Step 5: Visualizing the Route"""
+"""Step 5: 2-Opt Algorithm"""
+# 2-opt algorithm for improving the route
+def two_opt(route, distance_matrix):
+    improved = True
+    best_distance = calculate_distance(route, distance_matrix)
+
+    while improved:
+        improved = False
+        for i in range(len(route) - 1):
+            for j in range(i + 2, len(route)):
+                if j == len(route) - 1 and i == 0:
+                    continue
+                # Swap two edges
+                new_route = route[:i + 1] + route[i + 1:j + 1][::-1] + route[j + 1:]
+                new_distance = calculate_distance(new_route, distance_matrix)
+                if new_distance < best_distance:
+                    route = new_route
+                    best_distance = new_distance
+                    improved = True
+    return route, best_distance
+
+
+
+"""Step 6: Visualizing the Route"""
 # Plot the route
 def plot_route(coordinates, route, distance):
     route_coordinates = coordinates[route + [route[0]]]
@@ -83,7 +133,7 @@ def plot_route(coordinates, route, distance):
     plt.grid()
     plt.show()
 
-"""Step 6: Running the Main Function"""
+"""Step 7: Running the Main Function"""
 # Main function
 def main():
     dataset = str(input("Please enter the filename: "))
